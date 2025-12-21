@@ -46,7 +46,7 @@ async def factors():
     data = await select_query(query, {},"dtj_plandata")
     return data
 
-@app.get("/personnel")
+@app.get("/personnel", tags=["Модель [Personnel]: Персонал"])
 async def load_personnel_by_position(pv_position: int=1256, cod_prop: str='Prop_Personnel'):
     cls_dict = await cod_id_from_entity("Cls", ["Cls_Personnel"])
     cls = cls_dict['Cls_Personnel']
