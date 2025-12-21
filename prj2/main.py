@@ -2,7 +2,8 @@ import uvicorn
 from fastapi import FastAPI
 from contextlib import asynccontextmanager
 
-from db_utils import close_all_pools, select_query, cod_id_from_entity, id_propval
+from db_utils import close_all_pools, select_query, cod_id_from_entity, id_propval, cod_id_from_entity_map, \
+    map_entity_id_from_pv
 
 
 # Определяем логику жизненного цикла
@@ -71,33 +72,25 @@ async def load_personnel_by_position(pv_position: int=1256, cod_prop: str='Prop_
             where o.cls={cls}
     """
     res = await select_query(query, params_prop, "dtj_personnaldata")
+    print(res)
+
+    #Пересечение
+    dict_pv = await map_entity_id_from_pv("factorval", "Prop_Position", True)
+    #
+    dict_factor = await cod_id_from_entity_map("Factor", "Factor_Position")
+    fvs = await select_query("select id, name from factor where parent = $1", {id: dict_factor["Factor_Position"]}, "dtj_model")
+    dict_fvs = {item['id']: item['name'] for item in fvs}
+    #
+    locations = await select_query("""
+       select o.id, v.name from Obj o, ObjVer v where o.id=v.ownerVer
+    """, {},"dtj_orgstructuredata")
+    dict_locations = {item['id']: item['name'] for item in locations}
+
+    for item in res:
+        item["fvposition"] = dict_pv[item["pvposition"]]
+        item["nameposition"] = dict_fvs[item["fvposition"]]
+        item["namelocation"] = dict_locations[item["objlocation"]]
     return res
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=True)
-
-
-
-
-
-
-
-
-
-
-# import uvicorn
-# from fastapi import FastAPI
-#
-# from prj2.db_select import db_select
-#
-# app = FastAPI()
-#
-#
-# @app.get("/factors")
-# async def factors():
-#     query = "SELECT * FROM factor"
-#     return await db_select(query, {}, "dtj_model")
-#
-#
-# if __name__ == "__main__":
-#     uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=True)

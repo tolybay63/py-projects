@@ -24,19 +24,26 @@ async def select_query(sql: str, params: dict, db_name: str):
         rows = await conn.fetch(sql, *values)
         return [dict(row) for row in rows]
 
+#Частный случай УДАЛИТЬ!
 async def get_prop_params(props: list):
     """Возвращает словарь из props: {'Prop_A': 1000, 'Prop_B: 1001', ...}"""
     query = "SELECT id, cod FROM prop WHERE cod like 'Prop_%'"
-    res1 = await select_query(query, {}, "dtj_model")
-    result_dict = {item['cod']: item['id'] for item in res1}
+    res = await select_query(query, {}, "dtj_model")
+    result_dict = {item['cod']: item['id'] for item in res}
     return {k: result_dict[k] for k in props if k in result_dict}
 
-"""Возвращает словарь из кодов (cods) сущности (entity): {'Cod_A': 1000, 'Cod_B: 1001', ...}"""
+"""Возвращает словарь {cod: id} из кодов (cods) сущности (entity) в порядке cods: {'Cod_A': 1000, 'Cod_B: 1001', ...}"""
 async def cod_id_from_entity(entity: str, cods: list):
     query = f"SELECT id, cod FROM {entity} WHERE cod like '{entity}_%'"
-    res1 = await select_query(query, {}, "dtj_model")
-    result_dict = {item['cod']: item['id'] for item in res1}
+    res = await select_query(query, {}, "dtj_model")
+    result_dict = {item['cod']: item['id'] for item in res}
     return {k: result_dict[k] for k in cods if k in result_dict}
+
+"""Возвращает словарь {cod: id} из сущности (entity) {'Cod_A': 1000, 'Cod_B: 1001', ...}"""
+async def cod_id_from_entity_map(entity: str, cod: str):
+    query = f"SELECT id, cod FROM {entity} WHERE cod like '{cod}'"
+    res = await select_query(query, {}, "dtj_model")
+    return {item['cod']: item['id'] for item in res}
 
 async def id_propval(entity: str, id_entity: int, cod_prop: str):
     query = f"""
@@ -48,6 +55,17 @@ async def id_propval(entity: str, id_entity: int, cod_prop: str):
         return res[0]["id"]
     else:
         raise 'NotFoundPossibleValues-{cod_prop}'
+
+async def map_entity_id_from_pv(entity: str, cod_prop: str, key_is_propval: bool = False):
+    query = f"""
+        select pv.id, pv.factorVal from PropVal pv, Prop p
+        where pv.prop=p.id and p.cod='{cod_prop}' and pv.{entity} is not null    
+    """
+    res = await select_query(query, {}, "dtj_model")
+    if key_is_propval:
+        return {item['id']: item[entity] for item in res}
+    else:
+        return {item[entity]: item['id'] for item in res}
 
 
 async def close_all_pools():
