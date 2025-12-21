@@ -1,3 +1,5 @@
+from typing import Any
+
 import asyncpg
 
 # Хранилище пулов: {'db_name': pool_object}
@@ -21,6 +23,31 @@ async def select_query(sql: str, params: dict, db_name: str):
         values = list(params.values())
         rows = await conn.fetch(sql, *values)
         return [dict(row) for row in rows]
+
+async def get_prop_params(props: list):
+    """Возвращает словарь из props: {'Prop_A': 1000, 'Prop_B: 1001', ...}"""
+    query = "SELECT id, cod FROM prop WHERE cod like 'Prop_%'"
+    res1 = await select_query(query, {}, "dtj_model")
+    result_dict = {item['cod']: item['id'] for item in res1}
+    return {k: result_dict[k] for k in props if k in result_dict}
+
+"""Возвращает словарь из кодов (cods) сущности (entity): {'Cod_A': 1000, 'Cod_B: 1001', ...}"""
+async def cod_id_from_entity(entity: str, cods: list):
+    query = f"SELECT id, cod FROM {entity} WHERE cod like '{entity}_%'"
+    res1 = await select_query(query, {}, "dtj_model")
+    result_dict = {item['cod']: item['id'] for item in res1}
+    return {k: result_dict[k] for k in cods if k in result_dict}
+
+async def id_propval(entity: str, id_entity: int, cod_prop: str):
+    query = f"""
+        select pv.id, pv.prop from PropVal pv, Prop p
+        where pv.prop=p.id and pv.{entity}={id_entity} and p.cod like '{cod_prop}'    
+    """
+    res = await select_query(query, {}, "dtj_model")
+    if len(res) > 0:
+        return res[0]["id"]
+    else:
+        raise 'NotFoundPossibleValues-{cod_prop}'
 
 
 async def close_all_pools():

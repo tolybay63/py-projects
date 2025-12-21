@@ -2,7 +2,7 @@ import uvicorn
 from fastapi import FastAPI
 from contextlib import asynccontextmanager
 
-from db_utils import close_all_pools, select_query
+from db_utils import close_all_pools, select_query, cod_id_from_entity, id_propval
 
 
 # Определяем логику жизненного цикла
@@ -45,6 +45,33 @@ async def factors():
     data = await select_query(query, {},"dtj_plandata")
     return data
 
+@app.get("/personnel")
+async def load_personnel_by_position(pv_position: int=1256, cod_prop: str='Prop_Personnel'):
+    cls_dict = await cod_id_from_entity("Cls", ["Cls_Personnel"])
+    cls = cls_dict['Cls_Personnel']
+    pv = await id_propval("cls", cls, cod_prop)
+    params_prop = await cod_id_from_entity("Prop", ["Prop_UserSecondName", "Prop_UserFirstName", "Prop_UserMiddleName", "Prop_Position", "Prop_Location"])
+
+    query = f"""
+            select o.id, o.cls, v.name, v.fullName, {pv} as pv,
+                v14.propVal as pvPosition, null as fvPosition, null as namePosition,
+                v15.obj as objLocation, v15.propVal as pvLocation, null as nameLocation
+            from Obj o 
+                left join ObjVer v on o.id=v.ownerver and v.lastver=1
+                left join DataProp d2 on d2.objorrelobj=o.id and d2.prop=$1
+                left join DataPropVal v2 on d2.id=v2.dataprop
+                left join DataProp d4 on d4.objorrelobj=o.id and d4.prop=$2
+                left join DataPropVal v4 on d4.id=v4.dataprop
+                left join DataProp d5 on d5.objorrelobj=o.id and d5.prop=$3
+                left join DataPropVal v5 on d5.id=v5.dataprop
+                left join DataProp d14 on d14.objorrelobj=o.id and d14.prop=$4
+                inner join DataPropVal v14 on d14.id=v14.dataprop and v14.propVal={pv_position}     
+                left join DataProp d15 on d15.objorrelobj=o.id and d15.prop=$5
+                left join DataPropVal v15 on d15.id=v15.dataprop
+            where o.cls={cls}
+    """
+    res = await select_query(query, params_prop, "dtj_personnaldata")
+    return res
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=True)
