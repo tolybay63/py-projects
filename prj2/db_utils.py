@@ -1,5 +1,3 @@
-from typing import Any
-
 import asyncpg
 
 # Хранилище пулов: {'db_name': pool_object}
@@ -8,7 +6,8 @@ pools = {}
 async def get_db_pool(db_name: str):
     """Возвращает существующий пул или создает новый"""
     if db_name not in pools:
-        dsn = f"postgresql://pg:1q2w3e4R@127.0.0.1:5432/{db_name}"
+        #dsn = f"postgresql://pg:1q2w3e4R@127.0.0.1:5432/{db_name}"
+        dsn = f"postgresql://pg:1q2w3e4R@192.168.1.39:5432/{db_name}"
         # Инициализируем пул для конкретной БД
         pools[db_name] = await asyncpg.create_pool(dsn, min_size=1, max_size=10)
         print(f"--- Пул соединений для БД '{db_name}' создан ---")

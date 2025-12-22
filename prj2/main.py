@@ -1,6 +1,6 @@
+from contextlib import asynccontextmanager
 import uvicorn
 from fastapi import FastAPI
-from contextlib import asynccontextmanager
 
 from db_utils import close_all_pools, select_query, cod_id_from_entity, id_propval, cod_id_from_entity_map, \
     map_entity_id_from_pv
@@ -22,13 +22,20 @@ async def lifespan(app: FastAPI):
 # Передаем lifespan в конструктор FastAPI
 app = FastAPI(lifespan=lifespan)
 
-@app.get("/factor/{id}", tags=["Модель [Meta]: Факторы"], summary="Указанный фактор")
-async def factor(id: int):
+
+@app.get("/factors", tags=["Модель [Meta]: Факторы"], summary="Список факторов")
+async def factors():
+    query = "SELECT * FROM factor WHERE 0=0"
+    # Запрос к базе 'dtj_model'
+    data = await select_query(query, {},"dtj_model")
+    return data
+
+@app.get("/factor", tags=["Модель [Meta]: Факторы"], summary="Указанный фактор")
+async def factor(id: int=1000):
     query = "SELECT * FROM factor WHERE id = $1"
     # Запрос к базе 'dtj_model'
     data = await select_query(query, {"id": id},"dtj_model")
     return data
-
 
 @app.get("/users", tags=["Модель [Admin]: Пользователи"], summary="Список пользователей")
 async def users():
@@ -39,7 +46,7 @@ async def users():
     return data
 
 @app.get("/plans", tags=["Модель [Plan]: Объекты"], summary="Список объектов")
-async def factors():
+async def plans():
     query = "SELECT * FROM obj o, objVer v WHERE o.id = v.ownerVer and v.lastVer=1"
     # Запрос к другой базе, например 'dtj_plandata'
     # Пул для нее создастся автоматически при первом вызове

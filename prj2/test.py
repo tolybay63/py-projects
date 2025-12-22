@@ -1,5 +1,4 @@
 import asyncio
-
 from db_utils import select_query, cod_id_from_entity
 
 
