@@ -23,6 +23,10 @@ async def lifespan(app: FastAPI):
 app = FastAPI(lifespan=lifespan)
 
 
+@app.get("/")
+def read_root():
+    return {"message": "Добро пожаловать в Fast API!"}
+
 @app.get("/factors", tags=["Модель [Meta]: Факторы"], summary="Список факторов")
 async def factors():
     query = "SELECT * FROM factor WHERE 0=0"
@@ -36,6 +40,22 @@ async def factor(id: int=1000):
     # Запрос к базе 'dtj_model'
     data = await select_query(query, {"id": id},"dtj_model")
     return data
+
+
+
+@app.get("/factor_vals_by_cod/{cod_factor}", tags=["Факторы"], summary="Список значений указанного фактора")
+async def factor_vals(cod_factor: str="Factor_Defects"):
+    query = f"""
+            select fv.id, fv.cod, fv.name
+            from Factor fv
+                     join Factor f on fv.parent = f.id
+            where f.cod = $1
+            order by fv.ord
+    """
+
+    data = await select_query(query, {"cod_factor": cod_factor}, "dtj_model")
+    return data
+
 
 @app.get("/users", tags=["Модель [Admin]: Пользователи"], summary="Список пользователей")
 async def users():
