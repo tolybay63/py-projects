@@ -1,3 +1,5 @@
+import string
+
 import uvicorn
 import psycopg2
 from fastapi import FastAPI
@@ -24,6 +26,7 @@ async def factors():
     cursor = conn.cursor(cursor_factory=RealDictCursor)
     cursor.execute("select * from factor where parent is null")
     results = cursor.fetchall()
+    cursor.close()
     return [dict(row) for row in results]
 
 
@@ -32,6 +35,7 @@ async def factor(id: int):
     cursor = conn.cursor(cursor_factory=RealDictCursor)
     cursor.execute("select * from factor where id={}".format(id))
     results = cursor.fetchall()
+    cursor.close()
     return [dict(row) for row in results]
 
 @app.get("/factors_vals", tags=["Факторы"], summary="Список всех факторов со значениями")
@@ -39,6 +43,7 @@ async def factors_vals():
     cursor = conn.cursor(cursor_factory=RealDictCursor)
     cursor.execute("select * from factor")
     results = cursor.fetchall()
+    cursor.close()
     return [dict(row) for row in results]
 
 
@@ -47,8 +52,27 @@ async def factor_vals(id: int):
     cursor = conn.cursor(cursor_factory=RealDictCursor)
     cursor.execute("select * from factor where id={0} and parent is null union select * from factor where parent={0}".format(id, id))
     results = cursor.fetchall()
+    cursor.close()
     return [dict(row) for row in results]
 
+
+@app.get("/factor_vals_by_cod/{cod_factor}", tags=["Факторы"], summary="Список значений указанного фактора")
+async def factor_vals(cod_factor: str):
+    cursor = conn.cursor(cursor_factory=RealDictCursor)
+
+    query = """
+            select fv.id, fv.cod, fv.name
+            from Factor fv
+                     join Factor f on fv.parent = f.id
+            where f.cod = %s
+            order by fv.ord \
+            """
+
+    cursor.execute(query, (cod_factor,))
+
+    results = cursor.fetchall()
+    cursor.close()
+    return [dict(row) for row in results]
 
 
 if __name__ == "__main__":
