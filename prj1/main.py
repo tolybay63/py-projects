@@ -14,6 +14,11 @@ if conn:
     print("Подключено")
 
 app = FastAPI()
+
+@app.get("/")
+def read_root():
+    return {"message": "Добро пожаловать в Fast API!"}
+
 @app.get("/factors", tags=["Факторы"], summary="Список всех факторов")
 async def factors():
     cursor = conn.cursor(cursor_factory=RealDictCursor)
