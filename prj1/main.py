@@ -1,7 +1,5 @@
-import string
-
-import uvicorn
 import psycopg2
+import uvicorn
 from fastapi import FastAPI
 from psycopg2.extras import RealDictCursor
 
