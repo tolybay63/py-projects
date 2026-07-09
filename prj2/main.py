@@ -20,12 +20,16 @@ async def lifespan(app: FastAPI):
 
 
 # Передаем lifespan в конструктор FastAPI
-app = FastAPI(lifespan=lifespan)
-
+app = FastAPI(
+    lifespan=lifespan
+)
 
 @app.get("/")
 def read_root():
     return {"message": "Добро пожаловать в Fast API!"}
+
+
+
 
 @app.get("/factors", tags=["Модель [Meta]: Факторы"], summary="Список факторов")
 async def factors():
