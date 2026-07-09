@@ -22,7 +22,9 @@ dist/
 *.log
 
 # Файлы IDE (примеры)
+.idea
 .idea/
+.idea/*
 .vscode/
 *.swp
 
