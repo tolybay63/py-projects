@@ -8,7 +8,7 @@ conn = psycopg2.connect(
     user = "pg",
     password = "1q2w3e4R",
     port = "5432",
-    dbname = "dtj_model"
+    dbname = "fish_model2"
 )
 if conn:
     print("Подключено")
