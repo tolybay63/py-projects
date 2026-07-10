@@ -1,16 +1,34 @@
-import asyncpg
 
 # Хранилище пулов: {'db_name': pool_object}
 pools = {}
 
+from dotenv import load_dotenv
+import os
+import asyncpg
+
+load_dotenv()
+
+
+# Убедись, что переменные окружения загружены (например, через load_dotenv())
+# from dotenv import load_dotenv
+# load_dotenv()
+
 async def get_db_pool(db_name: str):
     """Возвращает существующий пул или создает новый"""
     if db_name not in pools:
-        dsn = f"postgresql://pg:1q2w3e4R@127.0.0.1:5432/{db_name}"
-        #dsn = f"postgresql://pg:1q2w3e4R@192.168.1.39:5432/{db_name}"
-        # Инициализируем пул для конкретной БД
+        # Получаем базовый DSN из переменных окружения
+        base_dsn = os.getenv("POSTGRES_DSN")
+
+        if not base_dsn:
+            raise ValueError("Переменная POSTGRES_DSN не найдена в .env файле")
+
+        # Формируем полный DSN: добавляем слэш и имя базы
+        dsn = f"{base_dsn}/{db_name}"
+
+        # Инициализируем пул
         pools[db_name] = await asyncpg.create_pool(dsn, min_size=1, max_size=10)
-        print(f"--- Пул соединений для БД '{db_name}' создан ---")
+        print(f"--- Пул соединений для БД '{db_name}' создан ({base_dsn}/{db_name}) ---")
+
     return pools[db_name]
 
 
