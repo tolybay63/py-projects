@@ -121,7 +121,7 @@ async def load_personnel_by_position(pv_position: int=1256, cod_prop: str='Prop_
                 left join DataProp d5 on d5.objorrelobj=o.id and d5.prop=$3
                 left join DataPropVal v5 on d5.id=v5.dataprop
                 left join DataProp d14 on d14.objorrelobj=o.id and d14.prop=$4
-                inner join DataPropVal v14 on d14.id=v14.dataprop and v14.propVal={pv_position}     
+                inner join DataPropVal v14 on d14.id=v14.dataprop and v14.propVal={pv_position}
                 left join DataProp d15 on d15.objorrelobj=o.id and d15.prop=$5
                 left join DataPropVal v15 on d15.id=v15.dataprop
             where o.cls={cls}
@@ -148,4 +148,4 @@ async def load_personnel_by_position(pv_position: int=1256, cod_prop: str='Prop_
     return res
 
 if __name__ == "__main__":
-    uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=True)
+    uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=False)
