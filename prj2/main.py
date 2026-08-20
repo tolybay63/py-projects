@@ -34,15 +34,15 @@ def read_root():
 @app.get("/factors", tags=["Модель [Meta]: Факторы"], summary="Список факторов")
 async def factors():
     query = "SELECT * FROM factor WHERE 0=0"
-    # Запрос к базе 'fish_model2'
-    data = await select_query(query, {},"fish_model2")
+    # Запрос к базе 'fish_model'
+    data = await select_query(query, {},"fish_model")
     return data
 
 @app.get("/factor", tags=["Модель [Meta]: Факторы"], summary="Указанный фактор")
 async def factor(id: int=1000):
     query = "SELECT * FROM factor WHERE id = $1"
-    # Запрос к базе 'fish_model2'
-    data = await select_query(query, {"id": id},"fish_model2")
+    # Запрос к базе 'fish_model'
+    data = await select_query(query, {"id": id},"fish_model")
     return data
 
 
@@ -57,7 +57,7 @@ async def factor_vals(cod_factor: str="Factor_Defects"):
             order by fv.ord
     """
 
-    data = await select_query(query, {"cod_factor": cod_factor}, "fish_model2")
+    data = await select_query(query, {"cod_factor": cod_factor}, "fish_model")
     return data
 
 
@@ -68,7 +68,7 @@ async def load_obj(cls: int=1008):
         from Obj o, ObjVer v
         where o.id=v.ownerVer and v.lastVer=1 and o.cls=$1    
     """
-    data = await select_query(query, {"cls": cls}, "fish_monitoring2")
+    data = await select_query(query, {"cls": cls}, "fish_nsi")
     return data
 
 
@@ -81,7 +81,7 @@ async def factor_vals(dict_name: str="fd_accesslevel"):
         where vis=1
         order by ord
     """
-    data = await select_query(query, {}, "fish_model2")
+    data = await select_query(query, {}, "fish_model")
     return data
 
 
@@ -133,7 +133,7 @@ async def load_personnel_by_position(pv_position: int=1256, cod_prop: str='Prop_
     dict_pv = await map_entity_id_from_pv("factorval", "Prop_Position", True)
     #
     dict_factor = await cod_id_from_entity_map("Factor", "Factor_Position")
-    fvs = await select_query("select id, name from factor where parent = $1", {id: dict_factor["Factor_Position"]}, "fish_model2")
+    fvs = await select_query("select id, name from factor where parent = $1", {id: dict_factor["Factor_Position"]}, "fish_model")
     dict_fvs = {item['id']: item['name'] for item in fvs}
     #
     locations = await select_query("""
