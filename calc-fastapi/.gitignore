@@ -1,0 +1,42 @@
+# --- Общие для Python и операционных систем ---
+# Кэш байт-кода Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Виртуальные окружения
+.venv/
+venv/
+env/
+ENV/
+
+# Файлы и папки сборки/дистрибуции
+build/
+dist/
+*.egg-info/
+
+# Локальные файлы и секреты
+*.log
+
+# Файлы IDE (примеры)
+.idea
+.idea/
+.idea/*
+.vscode/
+*.swp
+
+# --- Файлы зависимостей (если не используются Lock-файлы) ---
+# pip freeze > requirements.txt (но сам requirements.txt обычно оставляют)
+# Если используете Pipenv/Poetry/PDM, то lock-файлы (Pipfile.lock, poetry.lock) обычно включают.
+# pipenv/
+# poetry.lock # Можно игнорировать, если не хотите версионировать. Рекомендации варьируются.
+
+# --- Файлы тестов и генерации документации ---
+.pytest_cache/
+.coverage
+htmlcov/
+
+# --- Операционная система (macOS, Windows) ---
+.DS_Store
+Thumbs.db
