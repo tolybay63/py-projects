@@ -31,7 +31,7 @@ def read_root():
 
 
 
-@app.get("/factors", tags=["Модель [Meta]: Факторы"], summary="Список факторов")
+@app.post("/factors", tags=["Модель [Meta]: Факторы"], summary="Список факторов")
 async def factors():
     query = "SELECT * FROM factor WHERE 0=0"
     # Запрос к базе 'fish_model'

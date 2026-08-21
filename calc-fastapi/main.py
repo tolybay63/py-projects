@@ -30,7 +30,7 @@ def read_root():
 
 
 
-@app.get("/factors", tags=["Модель [Meta]: Факторы"], summary="Список факторов")
+@app.post("/factors", tags=["Модель [Meta]: Факторы"], summary="Список факторов")
 async def factors():
     query = "SELECT * FROM factor WHERE 0=0"
     # Запрос к базе 'fish_model'
@@ -60,7 +60,7 @@ async def factor_vals(cod_factor: str="Factor_Defects"):
     return data
 
 
-@app.get("/load_obj/{cls}", tags=["Объекты"], summary="Список объектов указанного класса")
+@app.post("/load_obj/{cls}", tags=["Объекты"], summary="Список объектов указанного класса")
 async def load_obj(cls: int=1008):
     query = f"""
         select o.id, v.name, o.cod 
