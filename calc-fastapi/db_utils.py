@@ -1,10 +1,14 @@
+from starlette import status
 
 # Хранилище пулов: {'db_name': pool_object}
 pools = {}
-
+from fastapi import HTTPException, status
 from dotenv import load_dotenv
 import os
 import asyncpg
+from typing import Sequence, Any
+
+
 
 load_dotenv()
 
@@ -41,26 +45,53 @@ async def select_query(sql: str, params: dict, db_name: str):
         rows = await conn.fetch(sql, *values)
         return [dict(row) for row in rows]
 
-#Частный случай УДАЛИТЬ!
-async def get_prop_params(props: list):
-    """Возвращает словарь из props: {'Prop_A': 1000, 'Prop_B: 1001', ...}"""
-    query = "SELECT id, cod FROM prop WHERE cod like 'Prop_%'"
-    res = await select_query(query, {}, "fish_model")
-    result_dict = {item['cod']: item['id'] for item in res}
-    return {k: result_dict[k] for k in props if k in result_dict}
 
-"""Возвращает словарь {cod: id} из кодов (cods) сущности (entity) в порядке cods: {'Cod_A': 1000, 'Cod_B: 1001', ...}"""
-async def cod_id_from_entity(entity: str, cods: str):
-    query = f"SELECT id, cod FROM {entity} WHERE cod in ({cods})"
-    res = await select_query(query, {}, "fish_model")
-    result_dict = {item['cod']: item['id'] for item in res}
-    return {k: result_dict[k] for k in cods if k in result_dict}
+"""Возвращает словарь {cod: id} из кодов (cods) сущности (entity): {'Cod_A': 1000, 'Cod_B': 1001, ...}"""
+async def cod_id_from_entity(entity: str, cods: Sequence[str]) -> dict[Any, Any] | tuple[Any]:
+    if not cods:
+        return {}
 
-"""Возвращает словарь {cod: id} из сущности (entity) {'Cod_A': 1000, 'Cod_B: 1001', ...}"""
-async def cod_id_from_entity_map(entity: str, cod: str):
-    query = f"SELECT id, cod FROM {entity} WHERE cod like '{cod}'"
+    # Формируем безопасный список значений в кавычках для IN (...)
+    formatted_cods = ", ".join(f"'{c}'" for c in cods)
+    query = f"SELECT id, cod FROM {entity} WHERE cod IN ({formatted_cods})"
+
     res = await select_query(query, {}, "fish_model")
     return {item['cod']: item['id'] for item in res}
+
+
+"""Возвращает кортеж идентификаторов: (id1, id2, ...)"""
+async def ids_from_entity_cods(entity: str, cods: Sequence[str]) -> tuple[int, ...]:
+    # 1. Если список кодов пуст — статус 400 (Bad Request)
+    if not cods:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Не указаны коды для выборки."
+        )
+
+    formatted_cods = ", ".join(f"'{c}'" for c in cods)
+    query = f"SELECT id, cod FROM {entity} WHERE cod IN ({formatted_cods})"
+    res = await select_query(query, {}, "fish_model")
+
+    # 2. Если по запросу вообще ничего не нашлось — статус 404 (Not Found)
+    if not res:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"В сущности '{entity}' не найден ни один из указанных кодов: {list(cods)}"
+        )
+
+    found_map = {item["cod"]: item["id"] for item in res}
+
+    # 3. Если нашлась только часть кодов — статус 404 с перечислением недостающих
+    missing_cods = [c for c in cods if c not in found_map]
+    if missing_cods:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"В сущности '{entity}' не найдены коды: {missing_cods}"
+        )
+
+    return tuple(found_map[c] for c in cods)
+
+
 
 """ Из таблицы PropVal возвращает id в зависимости entity (Cls, FV, Measure) и его id """
 async def id_propval(entity: str, id_entity: int, cod_prop: str):

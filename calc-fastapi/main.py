@@ -2,7 +2,7 @@ from contextlib import asynccontextmanager
 import uvicorn
 from fastapi import FastAPI
 
-from db_utils import close_all_pools, select_query, cod_id_from_entity
+from db_utils import close_all_pools, select_query, cod_id_from_entity, ids_from_entity_cods
 
 
 # Определяем логику жизненного цикла
@@ -29,15 +29,19 @@ def read_root():
 
 
 @app.get("/calc_bayes", tags=["Модель [Calc]: Расчеты"], summary="Расчет по методу Байеса")
-async def calc_bayes(id: int=1017):
-    # Получение исходных данных...
-    m = cod_id_from_entity("Prop", "'Prop_WaterArea','Prop_CalcWaterFluct'")
-    print(m)
-    i=0
+async def calc_bayes(id: int = 1012):
+    #m1 = await cod_id_from_entity("Prop", ["Prop_WaterArea", "Prop_CalcWaterFluct"])
+    #print(m1)
+
+    m2 = await ids_from_entity_cods("Prop", ["Prop_WaterArea", "Prop_CalcWaterFluct"])
+    print("m2", m2)
+
+    whe = "(" + ",".join(f"{it}" for it in m2) + ")"
+
+
     # Расчет...
-    return m
-
-
+    # ...
+    return whe
 
 
 @app.post("/factors", tags=["Модель [Meta]: Факторы"], summary="Список факторов")
@@ -47,17 +51,9 @@ async def factors():
     data = await select_query(query, {},"fish_model")
     return data
 
-@app.get("/factor", tags=["Модель [Meta]: Факторы"], summary="Указанный фактор")
-async def factor(id: int=1000):
-    query = "SELECT * FROM factor WHERE id = $1"
-    # Запрос к базе 'fish_model'
-    data = await select_query(query, {"id": id},"fish_model")
-    return data
-
-
 
 @app.get("/factor_vals_by_cod/{cod_factor}", tags=["Факторы"], summary="Список значений указанного фактора")
-async def factor_vals(cod_factor: str="Factor_Defects"):
+async def factor_vals(cod_factor: str="Factor_FishType"):
     query = f"""
             select fv.id, fv.cod, fv.name
             from Factor fv
@@ -69,16 +65,6 @@ async def factor_vals(cod_factor: str="Factor_Defects"):
     data = await select_query(query, {"cod_factor": cod_factor}, "fish_model")
     return data
 
-
-@app.post("/load_obj/{cls}", tags=["Объекты"], summary="Список объектов указанного класса")
-async def load_obj(cls: int=1008):
-    query = f"""
-        select o.id, v.name, o.cod 
-        from Obj o, ObjVer v
-        where o.id=v.ownerVer and v.lastVer=1 and o.cls=$1    
-    """
-    data = await select_query(query, {"cls": cls}, "fish_nsi")
-    return data
 
 
 
