@@ -1,43 +1,31 @@
-from starlette import status
-
-# Хранилище пулов: {'db_name': pool_object}
-pools = {}
-from fastapi import HTTPException, status
-from dotenv import load_dotenv
 import os
+from typing import Any, Sequence
+from dotenv import load_dotenv
 import asyncpg
-from typing import Sequence, Any
-
-
+from fastapi import HTTPException, status
 
 load_dotenv()
 
+# Хранилище пулов соединений: {'db_name': pool_object}
+pools = {}
 
-# Убедись, что переменные окружения загружены (например, через load_dotenv())
-# from dotenv import load_dotenv
-# load_dotenv()
 
 async def get_db_pool(db_name: str):
-    """Возвращает существующий пул или создает новый"""
+    """Возвращает существующий пул или создает новый для указанной базы данных."""
     if db_name not in pools:
-        # Получаем базовый DSN из переменных окружения
         base_dsn = os.getenv("POSTGRES_DSN")
-
         if not base_dsn:
             raise ValueError("Переменная POSTGRES_DSN не найдена в .env файле")
 
-        # Формируем полный DSN: добавляем слэш и имя базы
         dsn = f"{base_dsn}/{db_name}"
-
-        # Инициализируем пул
         pools[db_name] = await asyncpg.create_pool(dsn, min_size=1, max_size=10)
-        print(f"--- Пул соединений для БД '{db_name}' создан ({base_dsn}/{db_name}) ---")
+        print(f"--- Пул соединений для БД '{db_name}' создан ({dsn}) ---")
 
     return pools[db_name]
 
 
-async def select_query(sql: str, params: dict, db_name: str):
-    """Выполняет запрос в указанной БД, используя её пул"""
+async def select_query(sql: str, params: dict, db_name: str = "fish_model"):
+    """Выполняет SELECT-запрос в указанной БД (по умолчанию в fish_model)."""
     pool = await get_db_pool(db_name)
 
     async with pool.acquire() as conn:
@@ -46,22 +34,20 @@ async def select_query(sql: str, params: dict, db_name: str):
         return [dict(row) for row in rows]
 
 
-"""Возвращает словарь {cod: id} из кодов (cods) сущности (entity): {'Cod_A': 1000, 'Cod_B': 1001, ...}"""
-async def cod_id_from_entity(entity: str, cods: Sequence[str]) -> dict[Any, Any] | tuple[Any]:
+async def cod_id_from_entity(entity: str, cods: Sequence[str], db_name: str = "fish_model") -> dict[Any, Any]:
+    """Возвращает словарь {cod: id} из сущностей метаданных (по умолчанию в БД fish_model)."""
     if not cods:
         return {}
 
-    # Формируем безопасный список значений в кавычках для IN (...)
     formatted_cods = ", ".join(f"'{c}'" for c in cods)
     query = f"SELECT id, cod FROM {entity} WHERE cod IN ({formatted_cods})"
 
-    res = await select_query(query, {}, "fish_model")
+    res = await select_query(query, {}, db_name)
     return {item['cod']: item['id'] for item in res}
 
 
-"""Возвращает кортеж идентификаторов: (id1, id2, ...)"""
-async def ids_from_entity_cods(entity: str, cods: Sequence[str]) -> tuple[int, ...]:
-    # 1. Если список кодов пуст — статус 400 (Bad Request)
+async def ids_from_entity_cods(entity: str, cods: Sequence[str], db_name: str = "fish_model") -> tuple[int, ...]:
+    """Возвращает кортеж идентификаторов с проверкой наличия всех кодов."""
     if not cods:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -70,9 +56,8 @@ async def ids_from_entity_cods(entity: str, cods: Sequence[str]) -> tuple[int, .
 
     formatted_cods = ", ".join(f"'{c}'" for c in cods)
     query = f"SELECT id, cod FROM {entity} WHERE cod IN ({formatted_cods})"
-    res = await select_query(query, {}, "fish_model")
+    res = await select_query(query, {}, db_name)
 
-    # 2. Если по запросу вообще ничего не нашлось — статус 404 (Not Found)
     if not res:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -80,9 +65,8 @@ async def ids_from_entity_cods(entity: str, cods: Sequence[str]) -> tuple[int, .
         )
 
     found_map = {item["cod"]: item["id"] for item in res}
-
-    # 3. Если нашлась только часть кодов — статус 404 с перечислением недостающих
     missing_cods = [c for c in cods if c not in found_map]
+
     if missing_cods:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -92,34 +76,39 @@ async def ids_from_entity_cods(entity: str, cods: Sequence[str]) -> tuple[int, .
     return tuple(found_map[c] for c in cods)
 
 
-
-""" Из таблицы PropVal возвращает id в зависимости entity (Cls, FV, Measure) и его id """
-async def id_propval(entity: str, id_entity: int, cod_prop: str):
+async def id_propval(entity: str, id_entity: int, cod_prop: str, db_name: str = "fish_model"):
+    """Из таблицы PropVal возвращает id свойства по связующей сущности и коду пропса."""
     query = f"""
         select pv.id from PropVal pv, Prop p
-        where pv.prop=p.id and pv.{entity}={id_entity} and p.cod like '{cod_prop}'    
+        where pv.prop = p.id and pv.{entity} = $1 and p.cod = $2    
     """
-    res = await select_query(query, {}, "fish_model")
-    if len(res) > 0:
-        return res[0]["id"]
-    else:
-        raise 'NotFoundPossibleValues-{cod_prop}'
+    pool = await get_db_pool(db_name)
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow(query, id_entity, cod_prop)
+        if row:
+            return row["id"]
+        else:
+            raise ValueError(f"NotFoundPossibleValues-{cod_prop}")
 
-""" Возвращает список {idPropVal: idEntity} | {idEntity: idPropVal} в зависимости key_is_propval"""
-async def map_entity_id_from_pv(entity: str, cod_prop: str, key_is_propval: bool = False):
+
+async def map_entity_id_from_pv(entity: str, cod_prop: str, key_is_propval: bool = False, db_name: str = "fish_model"):
+    """Возвращает карту соответствия между ID PropVal и ID сущности."""
     query = f"""
         select pv.id, pv.{entity} from PropVal pv, Prop p
-        where pv.prop=p.id and p.cod='{cod_prop}' and pv.{entity} is not null    
+        where pv.prop = p.id and p.cod = $1 and pv.{entity} is not null    
     """
-    res = await select_query(query, {}, "fish_model")
-    if key_is_propval:
-        return {item['id']: item[entity] for item in res}
-    else:
-        return {item[entity]: item['id'] for item in res}
+    pool = await get_db_pool(db_name)
+    async with pool.acquire() as conn:
+        rows = await conn.fetch(query, cod_prop)
+        if key_is_propval:
+            return {item['id']: item[entity] for item in rows}
+        else:
+            return {item[entity]: item['id'] for item in rows}
 
 
 async def close_all_pools():
-    """Закрывает все открытые пулы при выключении"""
-    for name, pool in pools.items():
+    """Закрывает все открытые пулы при выключении приложения."""
+    for name, pool in list(pools.items()):
         await pool.close()
         print(f"--- Пул БД '{name}' закрыт ---")
+    pools.clear()

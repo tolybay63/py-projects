@@ -1,8 +1,13 @@
 from contextlib import asynccontextmanager
+
 import uvicorn
 from fastapi import FastAPI
 
-from db_utils import close_all_pools, select_query, cod_id_from_entity, ids_from_entity_cods
+from db_utils import (
+    cod_id_from_entity,
+    select_query,
+    close_all_pools
+)
 
 
 # Определяем логику жизненного цикла
@@ -28,20 +33,70 @@ def read_root():
     return {"message": "Добро пожаловать в Fast API!"}
 
 
-@app.get("/calc_bayes", tags=["Модель [Calc]: Расчеты"], summary="Расчет по методу Байеса")
-async def calc_bayes(id: int = 1012):
-    #m1 = await cod_id_from_entity("Prop", ["Prop_WaterArea", "Prop_CalcWaterFluct"])
-    #print(m1)
-
-    m2 = await ids_from_entity_cods("Prop", ["Prop_WaterArea", "Prop_CalcWaterFluct"])
-    print("m2", m2)
-
-    whe = "(" + ",".join(f"{it}" for it in m2) + ")"
+from fastapi import HTTPException
 
 
-    # Расчет...
-    # ...
-    return whe
+@app.get(
+    "/props/{id}",
+    tags=["Модель [Calc]: Расчеты"],
+    summary="Загрузка основных свойств расчета",
+)
+async def props(id: int = 1017):
+    # 1. Забираем ID свойств из базы meta
+    mp = await cod_id_from_entity(
+      "Prop", ["Prop_CalcStartYear", "Prop_CalcEndYear"]
+    )
+    start_prop_id = mp.get("Prop_CalcStartYear")
+    end_prop_id = mp.get("Prop_CalcEndYear")
+
+    if not start_prop_id or not end_prop_id:
+        raise HTTPException(
+        status_code=404,
+        detail=(
+            "В базе meta не найдены обязательные свойства Prop_CalcStartYear"
+            " или Prop_CalcEndYear"
+        ),
+    )
+
+    # 2. Собираем SQL с подставленными ID свойств
+    query = f"""
+        select 
+            v1.strVal as CalcStartYear,
+            v2.strVal as CalcEndYear
+        from Obj o
+            join DataProp d1 on d1.isObj=1 and d1.objOrRelObj=o.id and d1.prop={start_prop_id}
+            join DataPropVal v1 on v1.dataprop=d1.id
+            join DataProp d2 on d2.isObj=1 and d2.objOrRelObj=o.id and d2.prop={end_prop_id}
+            join DataPropVal v2 on v2.dataprop=d2.id
+        where o.id={id}
+    """
+    data = await select_query(query, {}, "fish_calc")
+
+    # 3. Защита от падения, если расчет с таким ID вообще не существует
+    if not data:
+        raise HTTPException(
+            status_code=404, detail=f"Расчет с ID {id} не найден в базе fish_calc"
+        )
+    return data[0]
+
+
+@app.get("/reservoir", tags=["Модель [Calc]: Расчеты"], summary="Загрузка свойств водоема")
+async def reservoir(id: int = 1017):
+    mp = await cod_id_from_entity("Prop", ["Prop_CalcStartYear", "Prop_CalcEndYear"])
+    query = f"""
+        select 
+            v1.strVal as CalcStartYear,
+            v2.strVal as CalcEndYear
+        from Obj o
+            join DataProp d1 on d1.isObj=1 and d1.objOrRelObj=o.id and d1.prop={mp.get('Prop_CalcStartYear')}
+            join DataPropVal v1 on v1.dataprop=d1.id
+            join DataProp d2 on d2.isObj=1 and d2.objOrRelObj=o.id and d2.prop={mp.get('Prop_CalcEndYear')}
+            join DataPropVal v2 on v2.dataprop=d2.id
+        where o.id={id}
+    """
+    data = await select_query(query, {}, "fish_calc")
+    return data
+
 
 
 @app.post("/factors", tags=["Модель [Meta]: Факторы"], summary="Список факторов")
