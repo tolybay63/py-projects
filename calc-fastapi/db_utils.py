@@ -62,9 +62,10 @@ async def cod_id_from_entity_map(entity: str, cod: str):
     res = await select_query(query, {}, "dtj_model")
     return {item['cod']: item['id'] for item in res}
 
+""" Из таблицы PropVal возвращает id в зависимости entity (Cls, FV, Measure) и его id """
 async def id_propval(entity: str, id_entity: int, cod_prop: str):
     query = f"""
-        select pv.id, pv.prop from PropVal pv, Prop p
+        select pv.id from PropVal pv, Prop p
         where pv.prop=p.id and pv.{entity}={id_entity} and p.cod like '{cod_prop}'    
     """
     res = await select_query(query, {}, "dtj_model")
@@ -73,9 +74,10 @@ async def id_propval(entity: str, id_entity: int, cod_prop: str):
     else:
         raise 'NotFoundPossibleValues-{cod_prop}'
 
+""" Возвращает список {idPropVal: idEntity} | {idEntity: idPropVal} в зависимости key_is_propval"""
 async def map_entity_id_from_pv(entity: str, cod_prop: str, key_is_propval: bool = False):
     query = f"""
-        select pv.id, pv.factorVal from PropVal pv, Prop p
+        select pv.id, pv.{entity} from PropVal pv, Prop p
         where pv.prop=p.id and p.cod='{cod_prop}' and pv.{entity} is not null    
     """
     res = await select_query(query, {}, "dtj_model")
