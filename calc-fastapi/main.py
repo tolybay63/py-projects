@@ -2,7 +2,7 @@ from contextlib import asynccontextmanager
 import uvicorn
 from fastapi import FastAPI
 
-from db_utils import close_all_pools, select_query
+from db_utils import close_all_pools, select_query, cod_id_from_entity
 
 
 # Определяем логику жизненного цикла
@@ -26,6 +26,16 @@ app = FastAPI(
 @app.get("/")
 def read_root():
     return {"message": "Добро пожаловать в Fast API!"}
+
+
+@app.get("/calc_bayes", tags=["Модель [Calc]: Расчеты"], summary="Расчет по методу Байеса")
+async def calc_bayes(id: int=1017):
+    # Получение исходных данных...
+    m = cod_id_from_entity("Prop", "'Prop_WaterArea','Prop_CalcWaterFluct'")
+    print(m)
+    i=0
+    # Расчет...
+    return m
 
 
 

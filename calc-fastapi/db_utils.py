@@ -45,21 +45,21 @@ async def select_query(sql: str, params: dict, db_name: str):
 async def get_prop_params(props: list):
     """Возвращает словарь из props: {'Prop_A': 1000, 'Prop_B: 1001', ...}"""
     query = "SELECT id, cod FROM prop WHERE cod like 'Prop_%'"
-    res = await select_query(query, {}, "dtj_model")
+    res = await select_query(query, {}, "fish_model")
     result_dict = {item['cod']: item['id'] for item in res}
     return {k: result_dict[k] for k in props if k in result_dict}
 
 """Возвращает словарь {cod: id} из кодов (cods) сущности (entity) в порядке cods: {'Cod_A': 1000, 'Cod_B: 1001', ...}"""
-async def cod_id_from_entity(entity: str, cods: list):
-    query = f"SELECT id, cod FROM {entity} WHERE cod like '{entity}_%'"
-    res = await select_query(query, {}, "dtj_model")
+async def cod_id_from_entity(entity: str, cods: str):
+    query = f"SELECT id, cod FROM {entity} WHERE cod in ({cods})"
+    res = await select_query(query, {}, "fish_model")
     result_dict = {item['cod']: item['id'] for item in res}
     return {k: result_dict[k] for k in cods if k in result_dict}
 
 """Возвращает словарь {cod: id} из сущности (entity) {'Cod_A': 1000, 'Cod_B: 1001', ...}"""
 async def cod_id_from_entity_map(entity: str, cod: str):
     query = f"SELECT id, cod FROM {entity} WHERE cod like '{cod}'"
-    res = await select_query(query, {}, "dtj_model")
+    res = await select_query(query, {}, "fish_model")
     return {item['cod']: item['id'] for item in res}
 
 """ Из таблицы PropVal возвращает id в зависимости entity (Cls, FV, Measure) и его id """
@@ -68,7 +68,7 @@ async def id_propval(entity: str, id_entity: int, cod_prop: str):
         select pv.id from PropVal pv, Prop p
         where pv.prop=p.id and pv.{entity}={id_entity} and p.cod like '{cod_prop}'    
     """
-    res = await select_query(query, {}, "dtj_model")
+    res = await select_query(query, {}, "fish_model")
     if len(res) > 0:
         return res[0]["id"]
     else:
@@ -80,7 +80,7 @@ async def map_entity_id_from_pv(entity: str, cod_prop: str, key_is_propval: bool
         select pv.id, pv.{entity} from PropVal pv, Prop p
         where pv.prop=p.id and p.cod='{cod_prop}' and pv.{entity} is not null    
     """
-    res = await select_query(query, {}, "dtj_model")
+    res = await select_query(query, {}, "fish_model")
     if key_is_propval:
         return {item['id']: item[entity] for item in res}
     else:
