@@ -108,8 +108,8 @@ async def run_calc_bayes(calculation_id: int):
 
 
             # Шаг 10: Следующий этап
-            yield f"[{calculation_id}] Запуск расчетного алгоритма Байеса...\n"
-            await asyncio.sleep(0.5)
+            yield f"[{calculation_id}] Запуск расчетного алгоритма Байеса... Имитация...\n"
+            await asyncio.sleep(1.5)
 
             yield f"[{calculation_id}] Расчет успешно завершен!\n"
 
