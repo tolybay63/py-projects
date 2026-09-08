@@ -34,9 +34,9 @@ async def select_query(sql: str, params: dict, db_name: str = "fish_model"):
         return [dict(row) for row in rows]
 
 #====================================================
-
+#1 Period
 async def get_years(calculation_id: int) -> dict:
-    # 1. Получаем ID свойств из мета-базы
+    # Получаем ID свойств из мета-базы
     mp = await cod_id_from_entity("Prop", ["Prop_CalcStartYear", "Prop_CalcEndYear"], db_name="fish_model")
 
     query = f"""
@@ -58,9 +58,75 @@ async def get_years(calculation_id: int) -> dict:
             raise ValueError(f"Расчет с id={calculation_id} не найден в fish_calc")
         return {"year1": int(row["year1"]), "year2": int(row["year2"])}
 
-
+#2 Reservoir
 async def load_reservoir_data(calculation_id: int, props_list: list[str]) -> dict:
     return await load_data_with_period(calculation_id, props_list)
+
+#3 Fish
+async def load_fish_data(calculation_id: int, props_list: list[str]) -> dict:
+    return await load_data_without_period(calculation_id, props_list)
+
+#4 Rand
+async def load_rand_data(calculation_id: int, props_list: list[str]) -> dict:
+    return await load_data_with_period(calculation_id, props_list)
+
+#5 Number
+async def load_number_data(calculation_id: int, props_list: list[str]) -> dict:
+    return await load_data_with_period(calculation_id, props_list)
+
+
+#====================================================
+async def load_data_without_period(calculation_id: int, props_list: list[str]) -> dict:
+    # Шаг 1. Получаем ID переданных свойств из базы fish_model (meta)
+    prop_ids = await ids_from_entity_cods("Prop", props_list, db_name="fish_model")
+    ids_str = ", ".join(map(str, prop_ids))
+
+    # Шаг 2. Забираем сами свойства и их дочерние элементы (parent) из мета-базы
+    meta_sql = f"""
+        select id, cod from prop where id in ({ids_str})
+        union all
+        select id, cod from prop where parent in ({ids_str})
+    """
+    meta_rows = await select_query(meta_sql, {}, db_name="fish_model")
+
+    id_to_cod = {row["id"]: row["cod"] for row in meta_rows}
+    all_prop_ids = list(id_to_cod.keys())
+
+    if not all_prop_ids:
+        return {}
+
+    # Шаг 3. Загружаем скалярные значения (без периодов) из fish_calc
+    all_ids_str = ", ".join(map(str, all_prop_ids))
+    val_sql = f"""
+        select 
+            d1.prop as prop_id,
+            v1.numberval as val
+        from Obj o
+            join DataProp d1 on d1.isObj=1 and d1.objOrRelObj=o.id 
+                and d1.periodtype is null 
+                and d1.prop in ({all_ids_str})
+            join DataPropVal v1 on v1.dataprop = d1.id
+        where o.id = $1
+    """
+
+    pool = await get_db_pool("fish_calc")
+    async with pool.acquire() as conn:
+        val_rows = await conn.fetch(val_sql, calculation_id)
+
+    # Шаг 4. Индексируем значения: {prop_id: numberval}
+    val_map = {r["prop_id"]: r["val"] for r in val_rows}
+
+    # Шаг 5. Формируем итоговый словарь {cod: numberval}
+    meter_data = {}
+    for row in meta_rows:
+        p_id = row["id"]
+        cod = row["cod"]
+        val = val_map.get(p_id)
+
+        if val is not None:
+            meter_data[cod] = val
+
+    return meter_data
 
 
 async def load_data_with_period(calculation_id: int, props_list: list[str]) -> dict:

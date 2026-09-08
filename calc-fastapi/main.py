@@ -8,7 +8,7 @@ import asyncio
 from db_utils import (
     cod_id_from_entity,
     select_query,
-    close_all_pools, load_reservoir_data, get_years
+    close_all_pools, load_reservoir_data, get_years, load_rand_data, load_fish_data, load_number_data
 )
 
 
@@ -60,7 +60,36 @@ async def run_calc_bayes(calculation_id: int):
             for line in pretty_data.split("\n"):
                 yield f"  {line}\n"
 
-            # Шаг 3: Следующий этап
+            # Шаг 3: Параметры рыбы + тестовый вывод структуры
+            yield f"[{calculation_id}] Шаг 3: Загрузка параметров рыбы (Prop_CalcAgeSex,Prop_CalcAgePrey,Prop_FishFecundity,Prop_FishFecundityMin,Prop_FishFecundityMax,Prop_CalcMaxNumberFry...\n"
+            fish_data = await load_fish_data(calculation_id, ["Prop_CalcAgeSex","Prop_CalcAgePrey","Prop_FishFecundity","Prop_FishFecundityMin","Prop_FishFecundityMax","Prop_CalcMaxNumberFry"])
+
+            yield f"[{calculation_id}] Полученные данные рыбы (тестовый вывод):\n"
+            pretty_data = json.dumps(fish_data, ensure_ascii=False, indent=2)
+            for line in pretty_data.split("\n"):
+                yield f"  {line}\n"
+
+            # Шаг 4: Параметры случайных величин + тестовый вывод структуры
+            yield f"[{calculation_id}] Шаг 4: Загрузка параметров случайных величин (Prop_CalcEggSurvivalRate,Prop_CalcBaseMortality,Prop_CalcParabolaLeft,Prop_CalcParabolaRight,Prop_CalcBaseEating,Prop_CalcPdyDevCoef...\n"
+            rand_data = await load_rand_data(calculation_id, ["Prop_CalcEggSurvivalRate","Prop_CalcBaseMortality","Prop_CalcParabolaLeft","Prop_CalcParabolaRight","Prop_CalcBaseEating","Prop_CalcPdyDevCoef"])
+
+            yield f"[{calculation_id}] Полученные данные случайных величин (тестовый вывод):\n"
+            pretty_data = json.dumps(rand_data, ensure_ascii=False, indent=2)
+            for line in pretty_data.split("\n"):
+                yield f"  {line}\n"
+
+            # Шаг 5: Начальная численность + тестовый вывод структуры
+            yield f"[{calculation_id}] Шаг 5: Загрузка начальной численности (Prop_CalcStartPopulation...\n"
+            number_data = await load_number_data(calculation_id, ["Prop_CalcStartPopulation"])
+
+            yield f"[{calculation_id}] Полученные данные начальной численности (тестовый вывод):\n"
+            pretty_data = json.dumps(number_data, ensure_ascii=False, indent=2)
+            for line in pretty_data.split("\n"):
+                yield f"  {line}\n"
+
+
+
+            # Шаг 10: Следующий этап
             yield f"[{calculation_id}] Запуск расчетного алгоритма Байеса...\n"
             await asyncio.sleep(0.5)
 
@@ -137,6 +166,8 @@ async def reservoir(id: int = 1017):
     """
     data = await select_query(query, {}, "fish_calc")
     return data
+
+
 
 
 
