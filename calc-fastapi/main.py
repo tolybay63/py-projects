@@ -2,11 +2,13 @@ from contextlib import asynccontextmanager
 
 import uvicorn
 from fastapi import FastAPI
+from fastapi.responses import StreamingResponse
+import asyncio
 
 from db_utils import (
     cod_id_from_entity,
     select_query,
-    close_all_pools
+    close_all_pools, load_reservoir_data, get_years
 )
 
 
@@ -35,7 +37,46 @@ def read_root():
 
 from fastapi import HTTPException
 
+import json
 
+
+@app.get("/calc_bayes/{calculation_id}/run", tags=["Модель [Calc]: Расчеты"])
+async def run_calc_bayes(calculation_id: int):
+    async def log_generator():
+        try:
+            yield f"[{calculation_id}] Старт выполнения расчета...\n"
+
+            # Шаг 1: Основные свойства расчета
+            yield f"[{calculation_id}] Шаг 1: Загрузка основных свойств расчета...\n"
+            years = await get_years(calculation_id)
+            yield f"[{calculation_id}] Период расчета: с {years['year1']} по {years['year2']} год.\n"
+
+            # Шаг 2: Параметры водоема + тестовый вывод структуры
+            yield f"[{calculation_id}] Шаг 2: Загрузка параметров водоема (Prop_WaterArea, Prop_CalcWaterFluct)...\n"
+            reservoir_data = await load_reservoir_data(calculation_id, ["Prop_WaterArea", "Prop_CalcWaterFluct"])
+
+            yield f"[{calculation_id}] Полученные данные водоема (тестовый вывод):\n"
+            pretty_data = json.dumps(reservoir_data, ensure_ascii=False, indent=2)
+            for line in pretty_data.split("\n"):
+                yield f"  {line}\n"
+
+            # Шаг 3: Следующий этап
+            yield f"[{calculation_id}] Запуск расчетного алгоритма Байеса...\n"
+            await asyncio.sleep(0.5)
+
+            yield f"[{calculation_id}] Расчет успешно завершен!\n"
+
+        except Exception as e:
+            yield f"ОШИБКА НА СЕРВЕРЕ: {str(e)}\n"
+
+    return StreamingResponse(log_generator(), media_type="text/plain; charset=utf-8")
+
+#============================================
+
+
+
+
+#============================================
 @app.get(
     "/props/{id}",
     tags=["Модель [Calc]: Расчеты"],
@@ -61,8 +102,8 @@ async def props(id: int = 1017):
     # 2. Собираем SQL с подставленными ID свойств
     query = f"""
         select 
-            v1.strVal as CalcStartYear,
-            v2.strVal as CalcEndYear
+            v1.strVal as "CalcStartYear",
+            v2.strVal as "CalcEndYear"
         from Obj o
             join DataProp d1 on d1.isObj=1 and d1.objOrRelObj=o.id and d1.prop={start_prop_id}
             join DataPropVal v1 on v1.dataprop=d1.id
