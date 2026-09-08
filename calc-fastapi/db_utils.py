@@ -75,6 +75,15 @@ async def load_number_data(calculation_id: int, props_list: list[str]) -> dict:
     return await load_data_with_period(calculation_id, props_list)
 
 
+#6 Pdu
+async def load_pdu_data(calculation_id: int, props_list: list[str]) -> dict:
+    return await load_data_with_period(calculation_id, props_list)
+
+#6 Weight
+async def load_weight_data(calculation_id: int, props_list: list[str]) -> dict:
+    return await load_data_with_period(calculation_id, props_list)
+
+
 #====================================================
 async def load_data_without_period(calculation_id: int, props_list: list[str]) -> dict:
     # Шаг 1. Получаем ID переданных свойств из базы fish_model (meta)

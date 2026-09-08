@@ -8,7 +8,8 @@ import asyncio
 from db_utils import (
     cod_id_from_entity,
     select_query,
-    close_all_pools, load_reservoir_data, get_years, load_rand_data, load_fish_data, load_number_data
+    close_all_pools, load_reservoir_data, get_years, load_rand_data, load_fish_data, load_number_data, load_pdu_data,
+    load_weight_data
 )
 
 
@@ -87,6 +88,23 @@ async def run_calc_bayes(calculation_id: int):
             for line in pretty_data.split("\n"):
                 yield f"  {line}\n"
 
+            # Шаг 6: ПДУ + тестовый вывод структуры
+            yield f"[{calculation_id}] Шаг 6: Загрузка ПДУ (Prop_CalcPdy...\n"
+            pdu_data = await load_pdu_data(calculation_id, ["Prop_CalcPdy"])
+
+            yield f"[{calculation_id}] Полученные данные ПДУ (тестовый вывод):\n"
+            pretty_data = json.dumps(pdu_data, ensure_ascii=False, indent=2)
+            for line in pretty_data.split("\n"):
+                yield f"  {line}\n"
+
+            # Шаг 7: Средний вес рыбы + тестовый вывод структуры
+            yield f"[{calculation_id}] Шаг 7: Загрузка Средний вес рыбы (Prop_WaterFishAverageWeight...\n"
+            weight_data = await load_weight_data(calculation_id, ["Prop_WaterFishAverageWeight"])
+
+            yield f"[{calculation_id}] Полученные данные Средний вес рыбы (тестовый вывод):\n"
+            pretty_data = json.dumps(weight_data, ensure_ascii=False, indent=2)
+            for line in pretty_data.split("\n"):
+                yield f"  {line}\n"
 
 
             # Шаг 10: Следующий этап
