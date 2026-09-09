@@ -111,6 +111,12 @@ async def run_calc_bayes(calculation_id: int):
             yield f"[{calculation_id}] Запуск расчетного алгоритма Байеса... Имитация...\n"
             await asyncio.sleep(1.5)
 
+            yield f"[{calculation_id}] Запись в БД результат 1...\n"
+            await asyncio.sleep(5)
+
+            yield f"[{calculation_id}] Запись в БД результат 2...\n"
+            await asyncio.sleep(5)
+
             yield f"[{calculation_id}] Расчет успешно завершен!\n"
 
         except Exception as e:
